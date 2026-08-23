@@ -26,6 +26,8 @@ export interface NormalizeOptions {
   uppercase?: boolean
   /** Drop leading/trailing lines that are entirely whitespace. */
   trimBlankBorders?: boolean
+  /** Drop leading/trailing rows and columns that are entirely black squares. */
+  trimBlockedBorders?: boolean
 }
 
 export interface NormalizeResult {
@@ -45,6 +47,7 @@ interface ResolvedOptions {
   outputEmpty: string
   uppercase: boolean
   trimBlankBorders: boolean
+  trimBlockedBorders: boolean
 }
 
 function resolveOptions(opts: NormalizeOptions): ResolvedOptions {
@@ -55,6 +58,7 @@ function resolveOptions(opts: NormalizeOptions): ResolvedOptions {
     outputEmpty: opts.outputEmpty ?? '.',
     uppercase: opts.uppercase ?? true,
     trimBlankBorders: opts.trimBlankBorders ?? true,
+    trimBlockedBorders: opts.trimBlockedBorders ?? true,
   }
 }
 
@@ -92,6 +96,35 @@ function classify(
   if (opts.emptyChars.includes(ch)) return { kind: 'empty' }
   if (/[a-zA-Z]/.test(ch)) return { kind: 'letter' }
   return { kind: 'block', unrecognized: true }
+}
+
+// A row or column of nothing but black squares carries no letters and no
+// words, so it's border padding rather than puzzle content - the kind of
+// thing that shows up when someone pads a grid out to a round size.
+function trimBlockedBorders(
+  grid: string[][],
+  blockChar: string,
+): { grid: string[][]; rowsTrimmed: number; colsTrimmed: number } {
+  const totalRows = grid.length
+  let top = 0
+  let bottom = totalRows
+  while (top < bottom && grid[top].every((cell) => cell === blockChar)) top++
+  while (bottom > top && grid[bottom - 1].every((cell) => cell === blockChar)) bottom--
+  const rows = grid.slice(top, bottom)
+  const rowsTrimmed = totalRows - rows.length
+
+  if (rows.length === 0) {
+    return { grid: rows, rowsTrimmed, colsTrimmed: 0 }
+  }
+
+  const totalCols = rows[0].length
+  let left = 0
+  let right = totalCols
+  while (left < right && rows.every((row) => row[left] === blockChar)) left++
+  while (right > left && rows.every((row) => row[right - 1] === blockChar)) right--
+  const colsTrimmed = totalCols - (right - left)
+
+  return { grid: rows.map((row) => row.slice(left, right)), rowsTrimmed, colsTrimmed }
 }
 
 export function normalizeGrid(
@@ -154,7 +187,24 @@ export function normalizeGrid(
     grid.push(row)
   })
 
-  return { grid, width, height, warnings }
+  let finalGrid = grid
+  let finalWidth = width
+  let finalHeight = height
+
+  if (opts.trimBlockedBorders) {
+    const trimmed = trimBlockedBorders(grid, opts.outputBlock)
+    if (trimmed.rowsTrimmed > 0) {
+      warnings.push(`trimmed ${trimmed.rowsTrimmed} fully-blocked border row(s)`)
+    }
+    if (trimmed.colsTrimmed > 0) {
+      warnings.push(`trimmed ${trimmed.colsTrimmed} fully-blocked border column(s)`)
+    }
+    finalGrid = trimmed.grid
+    finalHeight = finalGrid.length
+    finalWidth = finalGrid[0]?.length ?? 0
+  }
+
+  return { grid: finalGrid, width: finalWidth, height: finalHeight, warnings }
 }
 
 export function toText(grid: string[][]): string {

@@ -77,9 +77,9 @@ checking is exposed as a separate function because plenty of real puzzles
 
 ## Status
 
-Early. The normalizer handles ragged rows, mixed block/empty markers, and
-indentation. It does not yet trim fully-blocked border columns or read any
-of the common puzzle file formats directly (see below).
+Early. The normalizer handles ragged rows, mixed block/empty markers,
+indentation, and fully-blocked border rows/columns. It does not yet read
+any of the common puzzle file formats directly (see below).
 
 ## License
 
