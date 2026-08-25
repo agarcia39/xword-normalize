@@ -75,6 +75,15 @@ down entry). It only fixes the character-level representation. Symmetry
 checking is exposed as a separate function because plenty of real puzzles
 (cryptics, diagramless grids) aren't symmetric on purpose.
 
+## Development
+
+```sh
+npm test
+```
+
+Runs the unit tests for `normalizeGrid` with Node's built-in test runner
+(`node --test`), no test framework installed.
+
 ## Status
 
 Early. The normalizer handles ragged rows, mixed block/empty markers,
