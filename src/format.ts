@@ -62,7 +62,7 @@ function resolveOptions(opts: NormalizeOptions): ResolvedOptions {
   }
 }
 
-function splitLines(input: string): string[] {
+export function splitLines(input: string): string[] {
   return input.split(/\r\n|\r|\n/)
 }
 
@@ -209,6 +209,43 @@ export function normalizeGrid(
 
 export function toText(grid: string[][]): string {
   return grid.map((row) => row.join('')).join('\n')
+}
+
+export interface NumberedCell {
+  row: number
+  col: number
+  number: number
+  /** This cell is the first square of an across entry. */
+  across: boolean
+  /** This cell is the first square of a down entry. */
+  down: boolean
+}
+
+// Standard crossword numbering: a white cell gets a number if it starts
+// an across entry (nothing open to its left, something open to its
+// right) or a down entry (same, vertically), and it gets exactly one
+// number even when it starts both. This is the numbering scheme clue
+// lists are written against, so it's what lets a bare list of clues be
+// matched back up to grid positions.
+export function numberGrid(grid: string[][], blockChar = '#'): NumberedCell[] {
+  const height = grid.length
+  const width = grid[0]?.length ?? 0
+  const cells: NumberedCell[] = []
+  let next = 1
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      if (grid[r][c] === blockChar) continue
+      const startsAcross =
+        (c === 0 || grid[r][c - 1] === blockChar) && c + 1 < width && grid[r][c + 1] !== blockChar
+      const startsDown =
+        (r === 0 || grid[r - 1][c] === blockChar) && r + 1 < height && grid[r + 1][c] !== blockChar
+      if (startsAcross || startsDown) {
+        cells.push({ row: r, col: c, number: next, across: startsAcross, down: startsDown })
+        next++
+      }
+    }
+  }
+  return cells
 }
 
 // Standard American-style crosswords are symmetric under a 180-degree

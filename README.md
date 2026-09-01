@@ -67,6 +67,37 @@ normalizeGrid(rawGridText, {
 })
 ```
 
+## Reading Across Lite text puzzles
+
+Across Lite's plain-text export format (`<ACROSS PUZZLE V2>`, with `<GRID>`,
+`<ACROSS>`, `<DOWN>` sections and so on) bundles a solution grid with its
+clues. `parseAcrossLiteText` reads one of these into title, author,
+copyright, notepad, the raw grid text, and clue lists matched up to their
+grid numbers:
+
+```ts
+import { parseAcrossLiteText } from './src/acrosslite.js'
+
+const puzzle = parseAcrossLiteText(rawExportText)
+console.log(puzzle.title, puzzle.across[0]) // { number: 1, text: '...' }
+```
+
+Clues in this format are listed without their numbers, in reading order,
+so `parseAcrossLiteText` recomputes the standard numbering from the grid
+and zips it against each clue list; a mismatched clue count shows up as a
+warning rather than a silent misalignment.
+
+The CLI can normalize a puzzle's grid straight out of this format:
+
+```sh
+node dist/cli.js --acrosslite puzzle.txt
+```
+
+This runs `normalizeGrid` with block/empty markers set for a solution grid
+(`.` is a black square, and there's no separate "empty" marker since every
+white cell is filled in), and prints the title and clue counts to stderr
+alongside the usual warnings.
+
 ## What it does not do
 
 It doesn't validate that a grid is a legal crossword (word lengths,
@@ -87,8 +118,10 @@ Runs the unit tests for `normalizeGrid` with Node's built-in test runner
 ## Status
 
 Early. The normalizer handles ragged rows, mixed block/empty markers,
-indentation, and fully-blocked border rows/columns. It does not yet read
-any of the common puzzle file formats directly (see below).
+indentation, and fully-blocked border rows/columns. It reads the Across
+Lite text interchange format; it does not yet read the binary .puz
+format, and there's no validation of word length or grid connectivity
+yet, separate from the character-level cleanup this already does.
 
 ## License
 

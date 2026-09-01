@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeGrid, toText, hasRotationalSymmetry } from './format.js'
+import { normalizeGrid, toText, hasRotationalSymmetry, numberGrid } from './format.js'
 
 test('normalizes mixed block and empty markers to the defaults', () => {
   const result = normalizeGrid('#*■\n._?')
@@ -99,4 +99,39 @@ test('empty input normalizes to an empty grid', () => {
   assert.equal(result.grid.length, 0)
   assert.equal(result.width, 0)
   assert.equal(result.height, 0)
+})
+
+test('numberGrid assigns one number per entry start, shared when a cell starts both directions', () => {
+  const grid = [
+    ['A', 'B', 'C'],
+    ['D', 'E', 'F'],
+    ['G', 'H', 'I'],
+  ]
+  const cells = numberGrid(grid, '#')
+  assert.deepEqual(
+    cells.map((cell) => [cell.row, cell.col, cell.number, cell.across, cell.down]),
+    [
+      [0, 0, 1, true, true],
+      [0, 1, 2, false, true],
+      [0, 2, 3, false, true],
+      [1, 0, 4, true, false],
+      [2, 0, 5, true, false],
+    ],
+  )
+})
+
+test('numberGrid skips block squares and cells that start neither direction', () => {
+  const grid = [
+    ['A', '#', 'B'],
+    ['C', 'D', 'E'],
+  ]
+  const cells = numberGrid(grid, '#')
+  assert.deepEqual(
+    cells.map((cell) => [cell.row, cell.col, cell.number, cell.across, cell.down]),
+    [
+      [0, 0, 1, false, true],
+      [0, 2, 2, false, true],
+      [1, 0, 3, true, false],
+    ],
+  )
 })

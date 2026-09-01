@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
-    "test": "tsc && node --test dist/format.test.js"
+    "test": "tsc && node --test dist"
   },
   "license": "MIT",
   "devDependencies": {
