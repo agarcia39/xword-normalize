@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { normalizeGrid, toText, hasRotationalSymmetry } from './format.js'
+import { normalizeGrid, toText, hasRotationalSymmetry, validateGrid } from './format.js'
 import { parseAcrossLiteText } from './acrosslite.js'
 
 function readInput(path?: string): string {
@@ -10,6 +10,7 @@ function readInput(path?: string): string {
 function main(argv: string[]): void {
   const args = argv.slice(2)
   const checkSymmetry = args.includes('--check-symmetry')
+  const validate = args.includes('--validate')
   const fromAcrossLite = args.includes('--acrosslite')
   const filePath = args.find((a) => !a.startsWith('--'))
 
@@ -48,6 +49,17 @@ function main(argv: string[]): void {
         ? 'rotational symmetry: yes\n'
         : 'rotational symmetry: no\n',
     )
+  }
+
+  if (validate) {
+    const validation = validateGrid(result.grid)
+    if (validation.errors.length === 0) {
+      process.stderr.write('validation: no issues found\n')
+    } else {
+      for (const error of validation.errors) {
+        process.stderr.write(`validation: ${error}\n`)
+      }
+    }
   }
 }
 

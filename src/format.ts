@@ -265,3 +265,133 @@ export function hasRotationalSymmetry(grid: string[][], blockChar = '#'): boolea
   }
   return true
 }
+
+export interface ValidateOptions {
+  /** Shortest entry length allowed before it's flagged. American-style
+   *  crosswords conventionally require at least 3 letters per entry. */
+  minWordLength?: number
+  blockChar?: string
+}
+
+export interface ShortEntry {
+  row: number
+  col: number
+  direction: 'across' | 'down'
+  length: number
+}
+
+export interface ValidationResult {
+  connected: boolean
+  unreachableCells: number
+  shortEntries: ShortEntry[]
+  errors: string[]
+}
+
+// Every white cell in a real crossword has to be reachable from every
+// other white cell by crossing only other white cells - that's what makes
+// it one interlocking puzzle instead of several unrelated ones stitched
+// together. Returns the count of white cells that aren't reachable from
+// the rest, so a caller can tell "fine" from "one stray cell" from
+// "half the grid is cut off".
+function countUnreachableCells(grid: string[][], blockChar: string): number {
+  const height = grid.length
+  const width = grid[0]?.length ?? 0
+  const seen: boolean[][] = grid.map((row) => row.map(() => false))
+
+  let start: [number, number] | null = null
+  let totalWhite = 0
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      if (grid[r][c] === blockChar) continue
+      totalWhite++
+      if (!start) start = [r, c]
+    }
+  }
+  if (!start) return 0
+
+  const stack: [number, number][] = [start]
+  seen[start[0]][start[1]] = true
+  let reached = 0
+  while (stack.length > 0) {
+    const [r, c] = stack.pop()!
+    reached++
+    for (const [dr, dc] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ]) {
+      const nr = r + dr
+      const nc = c + dc
+      if (nr < 0 || nr >= height || nc < 0 || nc >= width) continue
+      if (seen[nr][nc] || grid[nr][nc] === blockChar) continue
+      seen[nr][nc] = true
+      stack.push([nr, nc])
+    }
+  }
+  return totalWhite - reached
+}
+
+// Scans each row for across runs and each column for down runs of white
+// cells, the same way numberGrid finds entry starts, but reporting every
+// run's length instead of just where entries of length >= 2 begin.
+function findShortEntries(grid: string[][], blockChar: string, minLength: number): ShortEntry[] {
+  const height = grid.length
+  const width = grid[0]?.length ?? 0
+  const entries: ShortEntry[] = []
+
+  for (let r = 0; r < height; r++) {
+    let runStart = -1
+    for (let c = 0; c <= width; c++) {
+      const open = c < width && grid[r][c] !== blockChar
+      if (open && runStart === -1) runStart = c
+      if (!open && runStart !== -1) {
+        const length = c - runStart
+        if (length < minLength) entries.push({ row: r, col: runStart, direction: 'across', length })
+        runStart = -1
+      }
+    }
+  }
+
+  for (let c = 0; c < width; c++) {
+    let runStart = -1
+    for (let r = 0; r <= height; r++) {
+      const open = r < height && grid[r][c] !== blockChar
+      if (open && runStart === -1) runStart = r
+      if (!open && runStart !== -1) {
+        const length = r - runStart
+        if (length < minLength) entries.push({ row: runStart, col: c, direction: 'down', length })
+        runStart = -1
+      }
+    }
+  }
+
+  return entries
+}
+
+// Checks the two things about a grid's shape that aren't part of the
+// character-level cleanup normalizeGrid does: that every white cell is
+// part of one connected puzzle, and that every entry meets a minimum
+// length. It doesn't know or care what letters are in the grid - a
+// solution grid and a blank template validate the same way.
+export function validateGrid(grid: string[][], options: ValidateOptions = {}): ValidationResult {
+  const minWordLength = options.minWordLength ?? 3
+  const blockChar = options.blockChar ?? '#'
+
+  const unreachableCells = countUnreachableCells(grid, blockChar)
+  const shortEntries = findShortEntries(grid, blockChar, minWordLength)
+
+  const errors: string[] = []
+  if (unreachableCells > 0) {
+    errors.push(
+      `grid is not fully connected: ${unreachableCells} white cell(s) can't be reached from the rest`,
+    )
+  }
+  for (const entry of shortEntries) {
+    errors.push(
+      `${entry.direction} entry at row ${entry.row + 1}, col ${entry.col + 1} is only ${entry.length} cell(s) long, minimum is ${minWordLength}`,
+    )
+  }
+
+  return { connected: unreachableCells === 0, unreachableCells, shortEntries, errors }
+}

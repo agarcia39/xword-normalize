@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeGrid, toText, hasRotationalSymmetry, numberGrid } from './format.js'
+import { normalizeGrid, toText, hasRotationalSymmetry, numberGrid, validateGrid } from './format.js'
 
 test('normalizes mixed block and empty markers to the defaults', () => {
   const result = normalizeGrid('#*■\n._?')
@@ -134,4 +134,78 @@ test('numberGrid skips block squares and cells that start neither direction', ()
       [1, 0, 3, true, false],
     ],
   )
+})
+
+test('validateGrid reports no errors for a fully connected grid with long enough entries', () => {
+  const grid = [
+    ['A', 'B', 'C'],
+    ['D', 'E', 'F'],
+    ['G', 'H', 'I'],
+  ]
+  const result = validateGrid(grid)
+  assert.equal(result.connected, true)
+  assert.equal(result.unreachableCells, 0)
+  assert.deepEqual(result.shortEntries, [])
+  assert.deepEqual(result.errors, [])
+})
+
+test('validateGrid detects a grid split into disconnected regions by a solid block row', () => {
+  const grid = [
+    ['A', 'A', 'A'],
+    ['#', '#', '#'],
+    ['B', 'B', 'B'],
+  ]
+  const result = validateGrid(grid)
+  assert.equal(result.connected, false)
+  assert.equal(result.unreachableCells, 3)
+  assert.ok(result.errors.some((e) => e.includes("not fully connected: 3 white cell(s)")))
+})
+
+test('validateGrid flags across and down entries shorter than the minimum length', () => {
+  const grid = [
+    ['A', 'B', '#'],
+    ['C', 'D', 'E'],
+    ['#', 'F', 'G'],
+  ]
+  const result = validateGrid(grid)
+  assert.equal(result.connected, true)
+  assert.equal(result.shortEntries.length, 4)
+  assert.deepEqual(
+    result.shortEntries.map((e) => [e.row, e.col, e.direction, e.length]).sort(),
+    [
+      [0, 0, 'across', 2],
+      [0, 0, 'down', 2],
+      [1, 2, 'down', 2],
+      [2, 1, 'across', 2],
+    ].sort(),
+  )
+})
+
+test('validateGrid honors a custom minWordLength', () => {
+  const grid = [
+    ['A', 'B', '#'],
+    ['C', 'D', 'E'],
+    ['#', 'F', 'G'],
+  ]
+  const result = validateGrid(grid, { minWordLength: 2 })
+  assert.deepEqual(result.shortEntries, [])
+  assert.deepEqual(result.errors, [])
+})
+
+test('validateGrid honors a custom blockChar', () => {
+  const grid = [
+    ['A', '.', 'B'],
+    ['C', 'D', 'E'],
+    ['.', 'F', 'G'],
+  ]
+  const result = validateGrid(grid, { blockChar: '.' })
+  assert.equal(result.connected, true)
+  assert.equal(result.shortEntries.length, 4)
+})
+
+test('validateGrid treats an empty grid as trivially valid', () => {
+  const result = validateGrid([])
+  assert.equal(result.connected, true)
+  assert.equal(result.unreachableCells, 0)
+  assert.deepEqual(result.errors, [])
 })

@@ -98,13 +98,32 @@ This runs `normalizeGrid` with block/empty markers set for a solution grid
 white cell is filled in), and prints the title and clue counts to stderr
 alongside the usual warnings.
 
+## Validating a grid's shape
+
+Once a grid is normalized, `validateGrid` checks two structural things
+that `normalizeGrid` doesn't: that every white cell is reachable from
+every other white cell (a real crossword is one interlocking puzzle, not
+several stitched together), and that no across or down entry is shorter
+than a minimum length (3 by default, the usual American-crossword rule):
+
+```ts
+import { normalizeGrid, validateGrid } from './src/format.js'
+
+const { grid } = normalizeGrid(rawGridText)
+const result = validateGrid(grid)
+console.log(result.connected, result.shortEntries, result.errors)
+```
+
+The CLI runs it with `--validate` and prints any problems to stderr.
+
 ## What it does not do
 
-It doesn't validate that a grid is a legal crossword (word lengths,
-connectivity, whether every letter cell is part of both an across and a
-down entry). It only fixes the character-level representation. Symmetry
-checking is exposed as a separate function because plenty of real puzzles
-(cryptics, diagramless grids) aren't symmetric on purpose.
+It doesn't check whether every letter cell is part of both an across and
+a down entry, and it doesn't know anything about the letters themselves -
+no dictionary, no word-list checking. It only fixes the character-level
+representation and checks the grid's shape. Symmetry checking is exposed
+as a separate function because plenty of real puzzles (cryptics,
+diagramless grids) aren't symmetric on purpose.
 
 ## Development
 
@@ -119,9 +138,10 @@ Runs the unit tests for `normalizeGrid` with Node's built-in test runner
 
 Early. The normalizer handles ragged rows, mixed block/empty markers,
 indentation, and fully-blocked border rows/columns. It reads the Across
-Lite text interchange format; it does not yet read the binary .puz
-format, and there's no validation of word length or grid connectivity
-yet, separate from the character-level cleanup this already does.
+Lite text interchange format, and it checks a normalized grid's shape for
+connectivity and minimum entry length. It does not yet read the binary
+.puz format, and there's no per-format preset for the CLI beyond
+`--acrosslite` yet.
 
 ## License
 
