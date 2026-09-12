@@ -280,10 +280,18 @@ export interface ShortEntry {
   length: number
 }
 
+export interface UncheckedCell {
+  row: number
+  col: number
+  /** Directions this cell has no real (length >= 2) entry in. */
+  missing: ('across' | 'down')[]
+}
+
 export interface ValidationResult {
   connected: boolean
   unreachableCells: number
   shortEntries: ShortEntry[]
+  uncheckedCells: UncheckedCell[]
   errors: string[]
 }
 
@@ -369,10 +377,65 @@ function findShortEntries(grid: string[][], blockChar: string, minLength: number
   return entries
 }
 
-// Checks the two things about a grid's shape that aren't part of the
+// A "checked" cell is the crossword-construction term for a white square
+// that's part of a real entry (length >= 2) in both directions - meaning
+// its letter is constrained by both an across and a down clue, not just
+// one. A cell that's only ever a lone square in one direction (a run of
+// length 1) is unchecked in that direction: nothing crosses it there, so
+// a solver filling in that direction alone could put anything in it.
+// This walks the same runs numberGrid and findShortEntries do, but per
+// cell rather than per entry, so it can report exactly which direction
+// each affected cell is missing.
+function findUncheckedCells(grid: string[][], blockChar: string): UncheckedCell[] {
+  const height = grid.length
+  const width = grid[0]?.length ?? 0
+
+  const acrossLength: number[][] = grid.map((row) => row.map(() => 0))
+  for (let r = 0; r < height; r++) {
+    let runStart = -1
+    for (let c = 0; c <= width; c++) {
+      const open = c < width && grid[r][c] !== blockChar
+      if (open && runStart === -1) runStart = c
+      if (!open && runStart !== -1) {
+        const length = c - runStart
+        for (let i = runStart; i < c; i++) acrossLength[r][i] = length
+        runStart = -1
+      }
+    }
+  }
+
+  const downLength: number[][] = grid.map((row) => row.map(() => 0))
+  for (let c = 0; c < width; c++) {
+    let runStart = -1
+    for (let r = 0; r <= height; r++) {
+      const open = r < height && grid[r][c] !== blockChar
+      if (open && runStart === -1) runStart = r
+      if (!open && runStart !== -1) {
+        const length = r - runStart
+        for (let i = runStart; i < r; i++) downLength[i][c] = length
+        runStart = -1
+      }
+    }
+  }
+
+  const unchecked: UncheckedCell[] = []
+  for (let r = 0; r < height; r++) {
+    for (let c = 0; c < width; c++) {
+      if (grid[r][c] === blockChar) continue
+      const missing: ('across' | 'down')[] = []
+      if (acrossLength[r][c] < 2) missing.push('across')
+      if (downLength[r][c] < 2) missing.push('down')
+      if (missing.length > 0) unchecked.push({ row: r, col: c, missing })
+    }
+  }
+  return unchecked
+}
+
+// Checks three things about a grid's shape that aren't part of the
 // character-level cleanup normalizeGrid does: that every white cell is
-// part of one connected puzzle, and that every entry meets a minimum
-// length. It doesn't know or care what letters are in the grid - a
+// part of one connected puzzle, that every entry meets a minimum length,
+// and that every white cell is checked (part of a real entry) in both
+// directions. It doesn't know or care what letters are in the grid - a
 // solution grid and a blank template validate the same way.
 export function validateGrid(grid: string[][], options: ValidateOptions = {}): ValidationResult {
   const minWordLength = options.minWordLength ?? 3
@@ -380,6 +443,7 @@ export function validateGrid(grid: string[][], options: ValidateOptions = {}): V
 
   const unreachableCells = countUnreachableCells(grid, blockChar)
   const shortEntries = findShortEntries(grid, blockChar, minWordLength)
+  const uncheckedCells = findUncheckedCells(grid, blockChar)
 
   const errors: string[] = []
   if (unreachableCells > 0) {
@@ -392,6 +456,12 @@ export function validateGrid(grid: string[][], options: ValidateOptions = {}): V
       `${entry.direction} entry at row ${entry.row + 1}, col ${entry.col + 1} is only ${entry.length} cell(s) long, minimum is ${minWordLength}`,
     )
   }
+  const article = (direction: 'across' | 'down') => (direction === 'across' ? 'an' : 'a')
+  for (const cell of uncheckedCells) {
+    errors.push(
+      `cell at row ${cell.row + 1}, col ${cell.col + 1} is not checked by ${cell.missing.map((d) => `${article(d)} ${d} entry`).join(' or ')}`,
+    )
+  }
 
-  return { connected: unreachableCells === 0, unreachableCells, shortEntries, errors }
+  return { connected: unreachableCells === 0, unreachableCells, shortEntries, uncheckedCells, errors }
 }

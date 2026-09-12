@@ -209,3 +209,39 @@ test('validateGrid treats an empty grid as trivially valid', () => {
   assert.equal(result.unreachableCells, 0)
   assert.deepEqual(result.errors, [])
 })
+
+test('validateGrid flags a cell that is a lone square in one direction as unchecked', () => {
+  // Column 1 has a block above and below row 1, so (1, 1) is a down run
+  // of length 1 even though its across run (row 1) is fine.
+  const grid = [
+    ['A', '#', 'B'],
+    ['C', 'D', 'E'],
+    ['F', '#', 'G'],
+  ]
+  const result = validateGrid(grid, { minWordLength: 1 })
+  assert.deepEqual(result.uncheckedCells, [{ row: 1, col: 1, missing: ['down'] }])
+  assert.ok(
+    result.errors.some((e) => e === 'cell at row 2, col 2 is not checked by a down entry'),
+  )
+})
+
+test('validateGrid flags a cell missing both directions', () => {
+  const grid = [['A']]
+  const result = validateGrid(grid, { minWordLength: 1 })
+  assert.deepEqual(result.uncheckedCells, [{ row: 0, col: 0, missing: ['across', 'down'] }])
+  assert.ok(
+    result.errors.some(
+      (e) => e === 'cell at row 1, col 1 is not checked by an across entry or a down entry',
+    ),
+  )
+})
+
+test('validateGrid reports no unchecked cells when every letter is doubly checked', () => {
+  const grid = [
+    ['A', 'B', 'C'],
+    ['D', 'E', 'F'],
+    ['G', 'H', 'I'],
+  ]
+  const result = validateGrid(grid)
+  assert.deepEqual(result.uncheckedCells, [])
+})

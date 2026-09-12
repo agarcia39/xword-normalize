@@ -100,30 +100,32 @@ alongside the usual warnings.
 
 ## Validating a grid's shape
 
-Once a grid is normalized, `validateGrid` checks two structural things
+Once a grid is normalized, `validateGrid` checks three structural things
 that `normalizeGrid` doesn't: that every white cell is reachable from
 every other white cell (a real crossword is one interlocking puzzle, not
-several stitched together), and that no across or down entry is shorter
-than a minimum length (3 by default, the usual American-crossword rule):
+several stitched together), that no across or down entry is shorter
+than a minimum length (3 by default, the usual American-crossword rule),
+and that every white cell is "checked" - part of a real (length >= 2)
+entry in both directions, not just a lone square that one direction's
+clue skips over:
 
 ```ts
 import { normalizeGrid, validateGrid } from './src/format.js'
 
 const { grid } = normalizeGrid(rawGridText)
 const result = validateGrid(grid)
-console.log(result.connected, result.shortEntries, result.errors)
+console.log(result.connected, result.shortEntries, result.uncheckedCells, result.errors)
 ```
 
 The CLI runs it with `--validate` and prints any problems to stderr.
 
 ## What it does not do
 
-It doesn't check whether every letter cell is part of both an across and
-a down entry, and it doesn't know anything about the letters themselves -
-no dictionary, no word-list checking. It only fixes the character-level
-representation and checks the grid's shape. Symmetry checking is exposed
-as a separate function because plenty of real puzzles (cryptics,
-diagramless grids) aren't symmetric on purpose.
+It doesn't know anything about the letters themselves - no dictionary,
+no word-list checking. It only fixes the character-level representation
+and checks the grid's shape. Symmetry checking is exposed as a separate
+function because plenty of real puzzles (cryptics, diagramless grids)
+aren't symmetric on purpose.
 
 ## Development
 
@@ -139,9 +141,9 @@ Runs the unit tests for `normalizeGrid` with Node's built-in test runner
 Early. The normalizer handles ragged rows, mixed block/empty markers,
 indentation, and fully-blocked border rows/columns. It reads the Across
 Lite text interchange format, and it checks a normalized grid's shape for
-connectivity and minimum entry length. It does not yet read the binary
-.puz format, and there's no per-format preset for the CLI beyond
-`--acrosslite` yet.
+connectivity, minimum entry length, and that every cell is checked in
+both directions. It does not yet read the binary .puz format, and
+there's no per-format preset for the CLI beyond `--acrosslite` yet.
 
 ## License
 
