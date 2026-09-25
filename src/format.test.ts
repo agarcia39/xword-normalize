@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeGrid, toText, hasRotationalSymmetry, numberGrid, validateGrid } from './format.js'
+import {
+  normalizeGrid,
+  toText,
+  hasRotationalSymmetry,
+  numberGrid,
+  validateGrid,
+  resolveFormatPreset,
+} from './format.js'
 
 test('normalizes mixed block and empty markers to the defaults', () => {
   const result = normalizeGrid('#*■\n._?')
@@ -72,6 +79,25 @@ test('leaves an all-blocked grid empty rather than throwing', () => {
   assert.equal(result.grid.length, 0)
   assert.equal(result.width, 0)
   assert.equal(result.height, 0)
+})
+
+test('resolveFormatPreset("xd") reads xd-style block and empty markers', () => {
+  const result = normalizeGrid('A.C\n-.-', resolveFormatPreset('xd'))
+  assert.equal(toText(result.grid), 'A#C\n.#.')
+})
+
+test('resolveFormatPreset("solution") treats "." as a block with no empty marker', () => {
+  const result = normalizeGrid('ABC\nD.E', resolveFormatPreset('solution'))
+  assert.equal(toText(result.grid), 'ABC\nD#E')
+})
+
+test('resolveFormatPreset("default") matches normalizeGrid with no options', () => {
+  const preset = resolveFormatPreset('default')
+  assert.equal(toText(normalizeGrid('#.#', preset).grid), toText(normalizeGrid('#.#').grid))
+})
+
+test('resolveFormatPreset throws on an unknown format name, listing the known ones', () => {
+  assert.throws(() => resolveFormatPreset('nyt'), /unknown format "nyt".*default.*xd.*solution/s)
 })
 
 test('respects custom block and empty character sets', () => {

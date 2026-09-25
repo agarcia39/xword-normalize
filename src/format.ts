@@ -66,6 +66,34 @@ export function splitLines(input: string): string[] {
   return input.split(/\r\n|\r|\n/)
 }
 
+// Named bundles of block/empty markers for grid text sources that show up
+// often enough to be worth a shortcut, so a caller (the CLI in particular)
+// doesn't have to spell out blockChars/emptyChars by hand every time.
+const FORMAT_PRESETS: Record<string, NormalizeOptions> = {
+  // This tool's own defaults: '#'/'*'/'■' as a block, '.'/'_'/'?'/' ' as empty.
+  default: {},
+  // The xd interchange format (https://xd.saul.pw): '.' for a block, '-'
+  // for an unfilled white square, uppercase letters for a solved one.
+  xd: { blockChars: ['.'], emptyChars: ['-'] },
+  // A solution grid as found in Across Lite text exports and .puz files:
+  // '.' for a block, and no separate empty marker since every white cell
+  // is already filled in.
+  solution: { blockChars: ['.'], emptyChars: [] },
+}
+
+// Looks up a preset by name for the CLI's --format flag. Throws rather
+// than falling back to the default, since a typo'd format name silently
+// normalizing against the wrong markers would corrupt the grid instead of
+// failing loudly.
+export function resolveFormatPreset(name: string): NormalizeOptions {
+  const preset = FORMAT_PRESETS[name]
+  if (!preset) {
+    const known = Object.keys(FORMAT_PRESETS).join(', ')
+    throw new Error(`unknown format ${JSON.stringify(name)}, expected one of: ${known}`)
+  }
+  return preset
+}
+
 // Quoted-through-chat grids are usually indented by a fixed amount on
 // every line. Strip the common leading whitespace so that isn't mistaken
 // for meaningful empty columns.

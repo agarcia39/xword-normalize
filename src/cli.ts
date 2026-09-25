@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { normalizeGrid, toText, hasRotationalSymmetry, validateGrid } from './format.js'
+import { normalizeGrid, toText, hasRotationalSymmetry, validateGrid, resolveFormatPreset } from './format.js'
 import { parseAcrossLiteText } from './acrosslite.js'
 
 function readInput(path?: string): string {
@@ -12,6 +12,7 @@ function main(argv: string[]): void {
   const checkSymmetry = args.includes('--check-symmetry')
   const validate = args.includes('--validate')
   const fromAcrossLite = args.includes('--acrosslite')
+  const formatArg = args.find((a) => a.startsWith('--format='))
   const filePath = args.find((a) => !a.startsWith('--'))
 
   const input = readInput(filePath)
@@ -32,9 +33,11 @@ function main(argv: string[]): void {
     gridInput = puzzle.gridText
   }
 
+  // --acrosslite already implies a solution grid's markers, so --format is
+  // only consulted for plain grid input.
   const result = fromAcrossLite
     ? normalizeGrid(gridInput, { blockChars: ['.'], emptyChars: [] })
-    : normalizeGrid(gridInput)
+    : normalizeGrid(gridInput, formatArg ? resolveFormatPreset(formatArg.slice('--format='.length)) : {})
 
   process.stdout.write(toText(result.grid) + '\n')
 

@@ -67,6 +67,28 @@ normalizeGrid(rawGridText, {
 })
 ```
 
+A few of these marker conventions come up often enough to have a name.
+`resolveFormatPreset` looks one up by name instead of spelling out
+`blockChars`/`emptyChars` by hand:
+
+```ts
+import { normalizeGrid, resolveFormatPreset } from './src/format.js'
+
+normalizeGrid(rawGridText, resolveFormatPreset('xd'))
+```
+
+`default` is this tool's own markers (the same as calling `normalizeGrid`
+with no options). `xd` is the [xd interchange format](https://xd.saul.pw)'s
+`.` block / `-` empty convention. `solution` is a solved grid with no
+separate empty marker at all — `.` for a block, letters everywhere else —
+which is what Across Lite text exports and `.puz` files use.
+
+The CLI takes the same names with `--format`:
+
+```sh
+node dist/cli.js --format=xd puzzle.xd
+```
+
 ## Reading Across Lite text puzzles
 
 Across Lite's plain-text export format (`<ACROSS PUZZLE V2>`, with `<GRID>`,
@@ -142,8 +164,8 @@ Early. The normalizer handles ragged rows, mixed block/empty markers,
 indentation, and fully-blocked border rows/columns. It reads the Across
 Lite text interchange format, and it checks a normalized grid's shape for
 connectivity, minimum entry length, and that every cell is checked in
-both directions. It does not yet read the binary .puz format, and
-there's no per-format preset for the CLI beyond `--acrosslite` yet.
+both directions. There are named presets (`--format`) for a few common
+block/empty conventions. It does not yet read the binary .puz format.
 
 ## License
 
